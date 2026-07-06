@@ -8,6 +8,7 @@
  */
 
 import { test, expect } from '@fixtures/site.fixture';
+import type { Locator, Page } from '@playwright/test';
 import { dismissCookieBanner } from '@utils/visual-helper';
 
 // Shared screenshot options applied to all visual tests
@@ -17,6 +18,15 @@ const SCREENSHOT_OPTIONS = {
   caret: 'hide',
   fullPage: true,
 } as const;
+
+/**
+ * Elements that animate independently of any real content change and would
+ * otherwise make every run "different": the particle background canvas and
+ * the auto-scrolling partner-logo carousel.
+ */
+function dynamicElementMasks(page: Page): Locator[] {
+  return [page.locator('#particles-js'), page.locator('.partners-carousel__container')];
+}
 
 test.describe('Visual Regression @visual', () => {
   // Skip entire suite when site config opts out
@@ -40,6 +50,7 @@ test.describe('Visual Regression @visual', () => {
 
     await expect(page).toHaveScreenshot('homepage-desktop.png', {
       ...SCREENSHOT_OPTIONS,
+      mask: dynamicElementMasks(page),
     });
   });
 
@@ -54,6 +65,7 @@ test.describe('Visual Regression @visual', () => {
 
     await expect(page).toHaveScreenshot('homepage-mobile.png', {
       ...SCREENSHOT_OPTIONS,
+      mask: dynamicElementMasks(page),
     });
   });
 
@@ -68,6 +80,7 @@ test.describe('Visual Regression @visual', () => {
 
     await expect(page).toHaveScreenshot('homepage-tablet.png', {
       ...SCREENSHOT_OPTIONS,
+      mask: dynamicElementMasks(page),
     });
   });
 });

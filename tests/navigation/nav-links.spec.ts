@@ -1,8 +1,10 @@
 /**
  * tests/navigation/nav-links.spec.ts
  *
- * Navigation tests — verify the primary nav is present, all links resolve,
- * mobile menu works, and link text meets accessibility best practices.
+ * Navigation tests for Hivemetric's single-page site. There is no <nav> or
+ * multi-page routing: "Home", "Our Approach", "Case Studies", and "History"
+ * are in-page sections reached via the footer "Quick Links" buttons or the
+ * hero "Case Studies" CTA.
  *
  * Tag: @navigation
  */
@@ -15,121 +17,93 @@ test.describe('Navigation @navigation', () => {
     await navigationPage.waitForLoad();
   });
 
-  // ── Visibility ──────────────────────────────────────────────────────────────
+  // ── Footer "Quick Links" ─────────────────────────────────────────────────────
+  // The Quick Links column is `hidden md:block` — only rendered at >= 768px.
 
-  test('navigation menu is visible @navigation', async ({ navigationPage }) => {
-    const isVisible = await navigationPage.isNavVisible();
-    expect(isVisible, 'A nav / [role="navigation"] element should be visible').toBeTruthy();
+  test('footer Quick Links contains every expected section @navigation', async ({
+    navigationPage,
+    siteConfig,
+    page,
+  }) => {
+    test.skip(page.viewportSize()!.width < 768, 'Quick Links column is hidden below the md breakpoint (768px)');
+
+    await expect(navigationPage.quickLinksHeading).toBeVisible();
+
+    const names = await navigationPage.getQuickLinkNames();
+    for (const expected of siteConfig.expectedNavItems) {
+      expect(names, `Footer Quick Links should include "${expected}"`).toContain(expected);
+    }
   });
 
-  // ── Link reachability ───────────────────────────────────────────────────────
+  test('each Quick Links button scrolls its section into view @navigation', async ({
+    navigationPage,
+    page,
+  }) => {
+    test.skip(page.viewportSize()!.width < 768, 'Quick Links column is hidden below the md breakpoint (768px)');
 
-  test('all nav links are reachable (no 404s) @navigation', async ({ navigationPage, siteConfig }) => {
-    const results = await navigationPage.checkAllNavLinksReachable();
+    const sections: Record<string, string> = {
+      'Our Approach': 'vision',
+      'Case Studies': 'case-studies',
+      History: 'history',
+    };
 
-    if (results.length === 0) {
-      console.warn('[navigation] No nav links found to check — skipping reachability assertion.');
-      return;
+    for (const [label, sectionId] of Object.entries(sections)) {
+      await navigationPage.clickQuickLink(label);
+      const section = page.locator(`#${sectionId}`);
+      await expect(section, `#${sectionId} should be in the viewport after clicking "${label}"`).toBeInViewport();
     }
-
-    const broken = results.filter((r) => !r.ok && r.status !== 0);
-    const unreachable = results.filter((r) => r.status === 0);
-
-    // Log unreachable links as warnings (network issues, not 404s)
-    if (unreachable.length > 0) {
-      console.warn(
-        '[navigation] Could not reach (network):\n' +
-          unreachable.map((r) => `  ${r.url}`).join('\n')
-      );
-    }
-
-    expect(
-      broken,
-      `Found ${broken.length} broken nav link(s):\n` +
-        broken.map((r) => `  ${r.url} → HTTP ${r.status}`).join('\n')
-    ).toHaveLength(0);
   });
 
-  // ── Mobile nav ──────────────────────────────────────────────────────────────
+  // ── Hero CTA ─────────────────────────────────────────────────────────────────
 
-  test('mobile nav menu toggles correctly @navigation', async ({ navigationPage, page }) => {
-    // Switch to mobile viewport
-    await page.setViewportSize({ width: 390, height: 844 });
-    await navigationPage.navigate();
-    await navigationPage.waitForLoad();
+  test('hero "Case Studies" CTA scrolls to the case studies section @navigation', async ({ homePage }) => {
+    await homePage.clickCaseStudiesCta();
+    await expect(homePage.caseStudiesSection).toBeInViewport();
+  });
 
-    const toggle = await navigationPage.getMobileMenuToggle();
+  // ── External / contact links ────────────────────────────────────────────────
 
-    if (!toggle) {
-      // Site may use a CSS-only responsive nav — pass if nav is already visible
-      const navVisible = await navigationPage.isNavVisible();
+  test('footer Privacy Policy link is present and reachable @navigation', async ({
+    navigationPage,
+  }) => {
+    await expect(navigationPage.privacyPolicyLink).toBeVisible();
+
+    const href = await navigationPage.privacyPolicyLink.getAttribute('href');
+    expect(href, 'Privacy Policy link should have an href').toBeTruthy();
+
+    const response = await navigationPage.page.request.head(href!, { timeout: 10_000 }).catch(() => null);
+    if (response) {
       expect(
-        navVisible,
-        'At mobile viewport, either a menu toggle or visible nav should exist'
+        response.ok() || response.status() < 400,
+        `Privacy Policy link "${href}" returned HTTP ${response.status()}`
       ).toBeTruthy();
-      return;
     }
-
-    // Toggle should be visible
-    await expect(toggle, 'Mobile menu toggle should be visible').toBeVisible();
-
-    // Open the menu
-    await navigationPage.openMobileMenu();
-
-    // After opening, at least one nav link should be visible
-    const navLinks = await navigationPage.getNavLinks();
-    expect(
-      navLinks.length,
-      'After opening mobile menu, nav links should be discoverable'
-    ).toBeGreaterThan(0);
   });
 
-  // ── Accessible link text ────────────────────────────────────────────────────
+  test('footer email and phone links use correct schemes @navigation', async ({ navigationPage }) => {
+    await expect(navigationPage.emailLink).toBeVisible();
+    await expect(navigationPage.phoneLink).toBeVisible();
 
-  test('nav links have descriptive text (not just "click here") @navigation', async ({ navigationPage }) => {
-    const navLinks = await navigationPage.getNavLinks();
+    const emailHref = await navigationPage.emailLink.getAttribute('href');
+    const phoneHref = await navigationPage.phoneLink.getAttribute('href');
 
-    if (navLinks.length === 0) {
-      console.warn('[navigation] No nav links found — skipping text quality check.');
-      return;
-    }
-
-    const badPhrases = /^(click here|here|more|read more|learn more|link|go)$/i;
-    const genericLinks = navLinks.filter((link) => badPhrases.test(link.text.trim()));
-
-    expect(
-      genericLinks,
-      `Found nav links with non-descriptive text:\n` +
-        genericLinks.map((l) => `  "${l.text}" → ${l.href}`).join('\n')
-    ).toHaveLength(0);
+    expect(emailHref).toMatch(/^mailto:[^@]+@[^.]+\..+/);
+    expect(phoneHref).toMatch(/^tel:\+?[\d-]+$/);
   });
 
-  // ── Logo home link ──────────────────────────────────────────────────────────
+  // ── Logo ─────────────────────────────────────────────────────────────────────
 
-  test('logo links back to homepage @navigation', async ({ page, siteConfig }) => {
-    await page.goto(siteConfig.url, { waitUntil: 'domcontentloaded' });
-
-    // Find the site logo — common patterns
-    const logoLink = page.locator(
-      'a[class*="logo" i], a[aria-label*="home" i], a[aria-label*="logo" i], ' +
-      'header a[href="/"], header a[href="' + siteConfig.url + '"]'
-    ).first();
-
-    if (await logoLink.count() === 0) {
-      console.warn('[navigation] Could not identify a logo link — skipping this assertion.');
-      return;
-    }
+  test('header logo is present and points to the homepage @navigation', async ({ page, siteConfig }) => {
+    const logoLink = page.locator('header a').first();
+    await expect(logoLink).toBeVisible();
 
     const href = await logoLink.getAttribute('href');
-    expect(href).not.toBeNull();
-
-    // Resolve relative href
-    const resolvedHref = new URL(href!, siteConfig.url).toString();
+    const resolvedHref = new URL(href ?? '/', siteConfig.url).toString();
     const siteOrigin = new URL(siteConfig.url).origin;
 
     expect(
       resolvedHref.startsWith(siteOrigin),
-      `Logo link "${href}" should point to the site homepage (origin: ${siteOrigin})`
+      `Header logo link "${href}" should point back to the site origin (${siteOrigin})`
     ).toBeTruthy();
   });
 });

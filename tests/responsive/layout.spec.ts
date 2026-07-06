@@ -120,4 +120,20 @@ test.describe('Responsive Layout @responsive', () => {
       'Viewport meta content should include "width=device-width"'
     ).toContain('width=device-width');
   });
+
+  // ── Footer collapse (Hivemetric-specific) ───────────────────────────────────
+
+  test('footer Quick Links and logo blurb collapse below the md breakpoint @responsive', async ({
+    page,
+    siteConfig,
+  }) => {
+    await page.goto(siteConfig.url, { waitUntil: 'domcontentloaded' });
+    const footer = page.locator('footer');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(footer.getByRole('heading', { name: 'Quick Links' })).toBeHidden();
+
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect(footer.getByRole('heading', { name: 'Quick Links' })).toBeVisible();
+  });
 });

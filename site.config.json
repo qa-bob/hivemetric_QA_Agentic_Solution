@@ -1,23 +1,26 @@
-﻿{
-    "name":  "Hivemetric",
-    "url":  "https://www.hivemetric.com",
-    "description":  "",
-    "industry":  "",
-    "hasContactForm":  true,
-    "expectedNavItems":  [
-
-                         ],
-    "viewports":  [
-                      "desktop",
-                      "mobile",
-                      "tablet"
-                  ],
-    "skipVisual":  false,
-    "skipForms":  false,
-    "auth":  {
-                 "required":  false,
-                 "loginUrl":  "",
-                 "username":  "",
-                 "password":  ""
-             }
+{
+  "name": "Hivemetric",
+  "url": "https://www.hivemetric.com",
+  "description": "Software consulting and development",
+  "industry": "Software Consulting & Custom Engineering",
+  "hasContactForm": false,
+  "expectedNavItems": [
+    "Home",
+    "Our Approach",
+    "Case Studies",
+    "History"
+  ],
+  "viewports": [
+    "desktop",
+    "mobile",
+    "tablet"
+  ],
+  "skipVisual": false,
+  "skipForms": true,
+  "auth": {
+    "required": false,
+    "loginUrl": "",
+    "username": "",
+    "password": ""
+  }
 }

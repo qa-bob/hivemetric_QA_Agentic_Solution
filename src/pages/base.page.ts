@@ -7,7 +7,7 @@
  */
 
 import { type Page, type Locator } from '@playwright/test';
-import type { SiteConfig } from '@types/site-config.types';
+import type { SiteConfig } from '@site-types/site-config.types';
 
 export class BasePage {
   readonly page: Page;
@@ -27,9 +27,19 @@ export class BasePage {
     await this.page.goto(this.url, { waitUntil: 'domcontentloaded' });
   }
 
-  /** Wait until network activity has settled. */
+  /**
+   * Wait for the page to finish loading. Prefers 'networkidle', but many
+   * sites keep background connections open indefinitely (chat widgets,
+   * analytics beacons) that never go idle, so this falls back to the 'load'
+   * state — already satisfied — rather than hanging for the full timeout.
+   */
   async waitForLoad(): Promise<void> {
-    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForLoadState('load');
+    try {
+      await this.page.waitForLoadState('networkidle', { timeout: 5_000 });
+    } catch {
+      // 'load' already fired; background network activity is not a failure.
+    }
   }
 
   // ── Page metadata ───────────────────────────────────────────────────────────

@@ -19,8 +19,49 @@ export interface LinkCheckResult {
   ok: boolean;
 }
 
+/** Maps a footer "Quick Links" label to the section id it scrolls to. */
+const QUICK_LINK_SECTION_IDS: Record<string, string> = {
+  Home: 'home',
+  'Our Approach': 'vision',
+  'Case Studies': 'case-studies',
+  History: 'history',
+};
+
 export class NavigationPage extends BasePage {
-  // ── Nav detection ────────────────────────────────────────────────────────────
+  // ── Footer "Quick Links" (this site has no <nav> element) ──────────────────
+  //
+  // Hivemetric is a single scrolling page: the footer's "Quick Links" column
+  // is a set of plain <button> elements (no href) that scroll to an in-page
+  // section. They are hidden below the md breakpoint (footer column is
+  // `hidden md:block`), so only assert on them at tablet/desktop viewports.
+
+  readonly footer: Locator = this.page.locator('footer');
+  readonly quickLinksHeading: Locator = this.footer.getByRole('heading', { name: 'Quick Links' });
+  readonly quickLinkButtons: Locator = this.footer.locator('ul li button');
+  readonly privacyPolicyLink: Locator = this.footer.getByRole('link', { name: 'Privacy Policy' });
+  readonly emailLink: Locator = this.footer.locator('a[href^="mailto:"]');
+  readonly phoneLink: Locator = this.footer.locator('a[href^="tel:"]');
+
+  /** Return the visible text of each footer "Quick Links" button, in order. */
+  async getQuickLinkNames(): Promise<string[]> {
+    const count = await this.quickLinkButtons.count();
+    const names: string[] = [];
+    for (let i = 0; i < count; i++) {
+      names.push(((await this.quickLinkButtons.nth(i).textContent()) ?? '').trim());
+    }
+    return names;
+  }
+
+  /** Click a footer "Quick Links" button by label and wait for its target section to scroll into view. */
+  async clickQuickLink(label: string): Promise<void> {
+    await this.quickLinkButtons.filter({ hasText: label }).first().click();
+    const sectionId = QUICK_LINK_SECTION_IDS[label];
+    if (sectionId) {
+      await this.page.locator(`#${sectionId}`).scrollIntoViewIfNeeded();
+    }
+  }
+
+  // ── Nav detection (generic fallback for multi-page sites) ──────────────────
 
   /**
    * Return the primary navigation locator.
