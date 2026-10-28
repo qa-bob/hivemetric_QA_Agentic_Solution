@@ -27,19 +27,9 @@ export class BasePage {
     await this.page.goto(this.url, { waitUntil: 'domcontentloaded' });
   }
 
-  /**
-   * Wait for the page to finish loading. Prefers 'networkidle', but many
-   * sites keep background connections open indefinitely (chat widgets,
-   * analytics beacons) that never go idle, so this falls back to the 'load'
-   * state — already satisfied — rather than hanging for the full timeout.
-   */
+  /** Wait until the page and its subresources have loaded. */
   async waitForLoad(): Promise<void> {
     await this.page.waitForLoadState('load');
-    try {
-      await this.page.waitForLoadState('networkidle', { timeout: 5_000 });
-    } catch {
-      // 'load' already fired; background network activity is not a failure.
-    }
   }
 
   // ── Page metadata ───────────────────────────────────────────────────────────
